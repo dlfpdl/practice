@@ -1,4 +1,6 @@
 const express = require('express');
+const request = require('request');
+const config = require('config');
 const router = express.Router();
 const verify = require('../../middleware/verify')
 const ProfileSchema = require('../../models/ProfileSchema');
@@ -151,7 +153,7 @@ router.delete('/', verify, async (req, res) => {
 });
 
 // @route  GET api/profile/user/experience
-// @desc   Add profile experience
+// @desc   Add Experience in profile
 // @access Private
 router.put('/experience', [verify, [
     check('title', 'Title is required').not().isEmpty(),
@@ -198,7 +200,7 @@ router.put('/experience', [verify, [
     }
 });
 
-// @route  GET api/profile/user/experience
+// @route  GET api/profile/experience
 // @desc   Delete Experience from profile
 // @access Private
 router.delete('/experience/:exp_id', verify, async (req, res) => {
@@ -217,6 +219,104 @@ router.delete('/experience/:exp_id', verify, async (req, res) => {
         console.error(err.message);
         res.status(500).send('Experience Delete Error');
     }
-})
+});
 
+// @route  GET api/profile/education
+// @desc   Add education in profile
+// @access Private
+router.put('/education', [verify, [
+    check('school', 'School is required').not().isEmpty(),
+    check('degree', 'Degree is required').not().isEmpty(),
+    check('field', 'Field of Study is required').not().isEmpty(),
+    check('from', 'From date is required').not().isEmpty()
+]], async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array()});
+    }
+    
+    const {
+        school,
+        degree,
+        field,
+        from,
+        to,
+        current,
+        description
+    } = req.body;
+
+    const newEdu = {
+        school,
+        degree,
+        field,
+        from,
+        to,
+        current,
+        description
+    };
+
+    try {
+        const profile = await ProfileSchema.findOne({ user: req.user.id });
+
+        // Add it to Object
+        profile.education.unshift(newEdu);
+
+        await profile.save();
+
+        res.json(profile);
+    } catch(err) {
+        console.error(err.message);
+        res.status(500).send('Education Create Error');
+    }
+});
+
+// @route  GET api/profile/user/education
+// @desc   Delete Education from profile
+// @access Private
+router.delete('/education/:edu_id', verify, async (req, res) => {
+    try {
+        const profile = await ProfileSchema.findOne({ user: req.user.id });
+
+        // Ger remove index
+        const removeIndex = profile.education.map(item => item.id).indexOf(req.params.edu_id);
+        profile.education.splice(removeIndex, 1);
+
+        await profile.save();
+
+        res.json(profile);
+
+    } catch (error) {
+        console.error(err.message);
+        res.status(500).send('Education Delete Error');
+    }
+});
+
+// @route  GET api/profile/github/:username
+// @desc   GET user repos from github
+// @access Public
+
+router.get('/github/:username', async (req, res) => {
+    try {
+        const options = {
+            // Config 같은 글로벌 variables 들을 가져오기 위해서는 const 이름 = require('관련 것들이 적혀있는 json 파일') 이후, 이름.get('') 하면 된다. 
+            uri: `https://api.github.com/users/${req.params.username}/repos?per_page=5&sort=created:asc&client_id=${config.get('githubClientId')}&client_secret=${config.get('githubSecret')}`,
+            method: 'GET',
+            headers: { 'user-agent' : 'node.js' }
+        };
+        
+        request(options, (error, response, body) => {
+            if(error) console.error(error);
+
+            if(response.statusCode !==200) {
+                res.status(404).json({ msg : "no github profile found"});
+            }
+
+            res.json(JSON.parse(body));
+        });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Github get user error');
+    }
+});
 module.exports = router;

@@ -1,4 +1,6 @@
 {
     "mongoURI" : "mongodb+srv://raylee:raylee@dastydb.zotoe.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
-    "jwtSecret" :  "mysecrettoken"
+    "jwtSecret" :  "mysecrettoken",
+    "githubClientId" : "Iv1.d257b71039c88c38",
+    "githubSecret" : "1f5414e41f963afa3fa477660d47eb4e3938f2d5"
 }

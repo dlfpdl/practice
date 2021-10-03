@@ -15,7 +15,7 @@ router.get('/myprofile', verify, async (req, res) => {
     try {
         const profile = await ProfileSchema.findOne({ user: req.user.id }).populate('user', ['name', 'avatar']);
         if (!profile) {
-            return res.status(400).json({ msg: 'There is no profile for this user' });
+            return res.status(400).json({ msg: 'No Profile' });
         }
         res.json(profile);
     } catch (err) {
@@ -103,5 +103,120 @@ router.post(
         }
     }
 );
+
+// @route  GET api/profile
+// @desc   GET all profiles from URL/api/profile
+// @access Public
+router.get('/', async (req, res) => {
+    try {
+        const profiles = await ProfileSchema.find().populate('user', ['name', 'avatar']);
+        res.json(profiles);
+    } catch(err) {
+        console.error(err.message);
+        res.status(500).send('Profile Server Error');
+    }
+});
+
+// @route  GET api/profile/user/:user_id
+// @desc   GET Profile by user_id
+// @access Public
+router.get('/user/:user_id', async (req, res) => {
+    try {
+        const profile = await ProfileSchema.findOne({ user: req.params.user_id }).populate('user', ['name', 'avatar']);
+
+        if(!profile) return res.status(400).json({ msg: 'There is no profile for this user'});
+
+        res.json(profile);
+    } catch(err) {
+        console.error(err.message);
+        res.status(500).send('Profile Server Error');
+    }
+});
+
+// @route  GET api/profile/user/:user_id
+// @desc   Delete profile, user, and post
+// @access Private
+router.delete('/', verify, async (req, res) => {
+    try {
+        // remove post
+        // Remove Profile
+        await ProfileSchema.findOneAndRemove({ user: req.user.id });
+        await UserSchema.findByIdAndRemove({ _id: req.user.id });
+
+        res.json({msg: 'user removed'});
+    } catch(err) {
+        console.error(err.message);
+        res.status(500).send(' User / Post Delete Error');
+    }
+});
+
+// @route  GET api/profile/user/experience
+// @desc   Add profile experience
+// @access Private
+router.put('/experience', [verify, [
+    check('title', 'Title is required').not().isEmpty(),
+    check('company', 'Company is required').not().isEmpty(),
+    check('from', 'From date is required').not().isEmpty()
+]], async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array()});
+    }
+    
+    const {
+        title,
+        company,
+        location,
+        from,
+        to,
+        current,
+        description
+    } = req.body;
+
+    const newExp = {
+        title,
+        company,
+        location,
+        from,
+        to,
+        current,
+        description
+    };
+
+    try {
+        const profile = await ProfileSchema.findOne({ user: req.user.id });
+
+        // Add it to Object
+        profile.experience.unshift(newExp);
+
+        await profile.save();
+
+        res.json(profile);
+    } catch(err) {
+        console.error(err.message);
+        res.status(500).send('Experience Create Error');
+    }
+});
+
+// @route  GET api/profile/user/experience
+// @desc   Delete Experience from profile
+// @access Private
+router.delete('/experience/:exp_id', verify, async (req, res) => {
+    try {
+        const profile = await ProfileSchema.findOne({ user: req.user.id });
+
+        // Ger remove index
+        const removeIndex = profile.experience.map(item => item.id).indexOf(req.params.exp_id);
+        profile.experience.splice(removeIndex, 1);
+
+        await profile.save();
+
+        res.json(profile);
+
+    } catch (error) {
+        console.error(err.message);
+        res.status(500).send('Experience Delete Error');
+    }
+})
 
 module.exports = router;
